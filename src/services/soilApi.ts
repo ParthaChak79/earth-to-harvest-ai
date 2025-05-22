@@ -1,27 +1,202 @@
 import { SoilAnalysisResult, CropRecommendations } from "../types/soil";
 
-// This is a mock implementation since we don't have direct access to the Open Epi Soil API
-// In a real app, you would replace this with actual API calls
+// ISRIC SoilGrids API base URL
+const SOILGRIDS_API_BASE = "https://rest.isric.org/soilgrids/v2.0/properties/query";
+
+interface SoilGridsResponse {
+  properties: {
+    layers: Array<{
+      name: string;
+      depths: Array<{
+        label: string;
+        range: string;
+        values: {
+          mean: number;
+          uncertainty: number;
+        };
+      }>;
+    }>;
+  };
+}
+
+/**
+ * Maps SoilGrids properties to soil types based on clay/sand/silt content
+ */
+const determineSoilType = (
+  clayContent: number,
+  sandContent: number,
+  siltContent: number
+): string => {
+  // Simple soil texture classification based on USDA soil texture triangle
+  if (clayContent >= 40) {
+    return 'Clay';
+  } else if (sandContent >= 50) {
+    return 'Sandy';
+  } else if (siltContent >= 50) {
+    return 'Silt';
+  } else if (clayContent >= 25 && sandContent >= 25 && siltContent >= 25) {
+    return 'Loam';
+  } else if (clayContent >= 25 && sandContent <= 45 && siltContent <= 45) {
+    return 'Clay Loam';
+  } else if (sandContent >= 70 && clayContent <= 15) {
+    return 'Sandy Loam';
+  } else if (siltContent >= 70 && clayContent <= 15) {
+    return 'Silty Loam';
+  } else {
+    return 'Loam'; // Default
+  }
+};
+
+/**
+ * Get soil description based on soil type
+ */
+const getSoilDescription = (soilType: string): string => {
+  switch (soilType) {
+    case 'Clay':
+      return 'Clay soil is characterized by fine particles that stick together when wet, forming a heavy and dense texture. It retains water and nutrients well but can be difficult to work with.';
+    case 'Sandy':
+      return 'Sandy soil consists of larger particles that allow for good drainage but poor nutrient retention. It warms up quickly in spring but can dry out rapidly in hot weather.';
+    case 'Silt':
+      return 'Silt soil has medium-sized particles that hold water well but can become compacted. It is fertile and easy to work with when properly managed.';
+    case 'Loam':
+      return 'Loam is considered ideal for growing most plants. It has a balanced mixture of sand, silt, and clay particles, providing good drainage while retaining adequate moisture and nutrients.';
+    case 'Clay Loam':
+      return 'Clay loam combines the nutrient-richness of clay with better drainage. It's fertile while being less difficult to work with than heavy clay.';
+    case 'Sandy Loam':
+      return 'Sandy loam provides good drainage with better water and nutrient retention than pure sandy soil. It's easy to work with and warms quickly in spring.';
+    case 'Silty Loam':
+      return 'Silty loam combines the fertility and water retention of silt with improved drainage and structure. It's generally fertile and easy to work with.';
+    default:
+      return 'This soil has a balanced composition with moderate fertility and water retention properties.';
+  }
+};
+
+/**
+ * Fetches soil data from ISRIC SoilGrids API based on coordinates and depth
+ */
 export const fetchSoilData = async (longitude: number, latitude: number, depth: number): Promise<SoilAnalysisResult> => {
-  // Simulating API call delay
-  await new Promise(resolve => setTimeout(resolve, 1500));
+  try {
+    console.log(`Fetching soil data for coordinates: (${longitude}, ${latitude}) at depth: ${depth}cm`);
+    
+    // Convert depth to SoilGrids depth ranges (0-5, 5-15, 15-30, 30-60, 60-100, 100-200 cm)
+    let depthRange = "0-5";
+    if (depth > 5 && depth <= 15) depthRange = "5-15";
+    else if (depth > 15 && depth <= 30) depthRange = "15-30";
+    else if (depth > 30 && depth <= 60) depthRange = "30-60";
+    else if (depth > 60 && depth <= 100) depthRange = "60-100";
+    else if (depth > 100) depthRange = "100-200";
+    
+    // Build the API URL
+    const url = `${SOILGRIDS_API_BASE}?lon=${longitude}&lat=${latitude}&property=clay,sand,silt,phh2o,soc,nitrogen,bdod,cec`;
+    
+    // Fetch data from the API
+    const response = await fetch(url);
+    
+    // Handle API errors
+    if (!response.ok) {
+      console.error('SoilGrids API error:', response.statusText);
+      throw new Error(`SoilGrids API error: ${response.status} ${response.statusText}`);
+    }
+    
+    const data: SoilGridsResponse = await response.json();
+    
+    // Process the response data
+    let clayContent = 0;
+    let sandContent = 0;
+    let siltContent = 0;
+    let ph = 0;
+    let organicMatter = 0;
+    let nitrogen = 0;
+    let bulkDensity = 0;
+    let cec = 0;
+    
+    // Extract relevant values for the requested depth
+    data.properties.layers.forEach(layer => {
+      const property = layer.name;
+      const depthData = layer.depths.find(d => d.label === depthRange);
+      
+      if (depthData) {
+        const value = depthData.values.mean;
+        
+        switch (property) {
+          case 'clay':
+            clayContent = value;
+            break;
+          case 'sand':
+            sandContent = value;
+            break;
+          case 'silt':
+            siltContent = value;
+            break;
+          case 'phh2o':
+            ph = value;
+            break;
+          case 'soc':
+            organicMatter = value;
+            break;
+          case 'nitrogen':
+            nitrogen = value;
+            break;
+          case 'bdod':
+            bulkDensity = value;
+            break;
+          case 'cec':
+            cec = value;
+            break;
+        }
+      }
+    });
+    
+    // Determine soil type based on composition
+    const soilType = determineSoilType(clayContent, sandContent, siltContent);
+    
+    // Get appropriate soil description
+    const description = getSoilDescription(soilType);
+    
+    // Format soil properties
+    const properties = [
+      { name: 'Clay Content', value: clayContent, unit: '%', description: 'Percentage of clay particles' },
+      { name: 'Sand Content', value: sandContent, unit: '%', description: 'Percentage of sand particles' },
+      { name: 'Silt Content', value: siltContent, unit: '%', description: 'Percentage of silt particles' },
+      { name: 'pH Level', value: ph, unit: 'pH', description: ph > 7 ? 'Alkaline' : ph < 7 ? 'Acidic' : 'Neutral' },
+      { name: 'Organic Matter', value: organicMatter, unit: 'g/kg', description: organicMatter > 30 ? 'High' : organicMatter > 15 ? 'Moderate' : 'Low' },
+      { name: 'Nitrogen', value: nitrogen, unit: 'g/kg', description: nitrogen > 2 ? 'High' : nitrogen > 1 ? 'Moderate' : 'Low' },
+      { name: 'Bulk Density', value: bulkDensity, unit: 'kg/dm³', description: 'Soil compaction indicator' },
+      { name: 'CEC', value: cec, unit: 'cmol/kg', description: 'Cation Exchange Capacity - nutrient retention ability' },
+      { 
+        name: 'Water Retention', 
+        value: clayContent > 35 ? 'High' : sandContent > 50 ? 'Low' : 'Moderate', 
+        description: clayContent > 35 ? 'Holds water well' : sandContent > 50 ? 'Drains quickly' : 'Average drainage' 
+      }
+    ];
+    
+    return {
+      soilType,
+      properties,
+      description
+    };
+  } catch (error) {
+    console.error("Error fetching soil data:", error);
+    // Fallback to mock data in case of API errors
+    return fallbackMockSoilData(longitude, latitude, depth);
+  }
+};
+
+/**
+ * Fallback mock implementation if the API fails
+ */
+const fallbackMockSoilData = (longitude: number, latitude: number, depth: number): SoilAnalysisResult => {
+  console.warn("Using fallback mock soil data due to API error");
   
-  // For demo purposes, return different soil types based on coordinates
   const soilTypes = ['Clay', 'Sandy', 'Loam', 'Silt', 'Peat', 'Chalky'];
   
-  // Create a more varied algorithm to determine soil type based on all three inputs
-  // This will ensure different coordinates and depths give different results
   const latMod = Math.sin(latitude * 0.1) * 100;
   const longMod = Math.cos(longitude * 0.15) * 100;
   const depthMod = Math.tan(depth * 0.05) * 50;
   
-  // Combine all factors with some weights to create more variability
   const hash = Math.abs(Math.round(latMod + longMod + depthMod)) % soilTypes.length;
   const soilType = soilTypes[hash];
   
-  console.log(`Calculated soil type for coords (${longitude}, ${latitude}, ${depth}): ${soilType}`);
-  
-  // Generate mock properties based on soil type
   let properties = [];
   let description = "";
   
