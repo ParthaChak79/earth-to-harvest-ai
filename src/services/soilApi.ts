@@ -60,7 +60,7 @@ export const fetchSoilData = async (longitude: number, latitude: number, depth: 
         { name: 'Potassium', value: 150, unit: 'ppm', description: 'Medium' },
         { name: 'Water Retention', value: 'Moderate to High', description: 'Holds water well' }
       ];
-      description = 'Silt soil has medium-sized particles that hold water well but can become compacted. It's fertile and easy to work with when properly managed.';
+      description = 'Silt soil has medium-sized particles that hold water well but can become compacted. It is fertile and easy to work with when properly managed.';
       break;
     case 'Peat':
       properties = [
@@ -108,7 +108,7 @@ export const getCropRecommendations = async (soilType: string): Promise<CropReco
   await new Promise(resolve => setTimeout(resolve, 800));
   
   // Return different crop recommendations based on soil type
-  let recommendedCrops: Crop[] = [];
+  let recommendedCrops = [];
   let notes = "";
   
   switch (soilType) {
