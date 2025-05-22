@@ -1,3 +1,4 @@
+
 import { SoilAnalysisResult, CropRecommendations } from "../types/soil";
 
 // ISRIC SoilGrids API base URL
