@@ -62,11 +62,11 @@ const getSoilDescription = (soilType: string): string => {
     case 'Loam':
       return 'Loam is considered ideal for growing most plants. It has a balanced mixture of sand, silt, and clay particles, providing good drainage while retaining adequate moisture and nutrients.';
     case 'Clay Loam':
-      return 'Clay loam combines the nutrient-richness of clay with better drainage. It's fertile while being less difficult to work with than heavy clay.';
+      return 'Clay loam combines the nutrient-richness of clay with better drainage. It\'s fertile while being less difficult to work with than heavy clay.';
     case 'Sandy Loam':
-      return 'Sandy loam provides good drainage with better water and nutrient retention than pure sandy soil. It's easy to work with and warms quickly in spring.';
+      return 'Sandy loam provides good drainage with better water and nutrient retention than pure sandy soil. It\'s easy to work with and warms quickly in spring.';
     case 'Silty Loam':
-      return 'Silty loam combines the fertility and water retention of silt with improved drainage and structure. It's generally fertile and easy to work with.';
+      return 'Silty loam combines the fertility and water retention of silt with improved drainage and structure. It\'s generally fertile and easy to work with.';
     default:
       return 'This soil has a balanced composition with moderate fertility and water retention properties.';
   }
