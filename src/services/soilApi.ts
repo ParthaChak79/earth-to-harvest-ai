@@ -174,7 +174,12 @@ export const fetchSoilData = async (longitude: number, latitude: number, depth: 
     return {
       soilType,
       properties,
-      description
+      description,
+      location: {
+        longitude,
+        latitude,
+        depth
+      }
     };
   } catch (error) {
     console.error("Error fetching soil data:", error);
@@ -283,7 +288,12 @@ const fallbackMockSoilData = (longitude: number, latitude: number, depth: number
   return {
     soilType,
     properties,
-    description
+    description,
+    location: {
+      longitude,
+      latitude,
+      depth
+    }
   };
 };
 

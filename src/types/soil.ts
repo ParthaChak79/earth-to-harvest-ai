@@ -16,6 +16,11 @@ export interface SoilAnalysisResult {
   soilType: string;
   properties: SoilProperty[];
   description: string;
+  location?: {
+    longitude: number;
+    latitude: number;
+    depth: number;
+  };
 }
 
 export interface Crop {
